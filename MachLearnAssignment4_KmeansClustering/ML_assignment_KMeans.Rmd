@@ -1,0 +1,105 @@
+---
+title: "ML_assignment_KMeans"
+author: "Abhishek_Sau"
+date: "19/03/2021"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+```{r}
+setwd("D:\\Study\\Assignments\\MachLearn\\MachLearnAssignment4_KmeansClustering")
+Pdata <- read.csv("Pharmaceuticals.csv")
+head(Pdata)
+
+
+dim(Pdata) #Dataframe has 14 variables and 21 records
+
+str(Pdata) #Shows the No. of variable and their datatypes
+
+U<-unique(Pdata) # This shows there are no duplicate rows
+dim(U) 
+
+pairs(Pdata[3:11]) #All possible combinations of Discrete variables plotted
+
+library(DataExplorer)
+introduce(Pdata) #Shows the number of Discrete/continuous variables and missing value, if any.
+
+#There are 5 discrete Variables, 9 Continuous variables and no missing variables.
+```
+
+#Outliers
+
+```{r}
+boxplot()
+```
+
+#Data exploration
+
+
+```{r}
+set.seed(123)
+plot(Market_Cap~Rev_Growth, Pdata)
+with(Pdata, text(Market_Cap~Rev_Growth, labels=Symbol, pos=4, cex=0.4)) #A rough estimate of how the distribution is for Market cap vs revenue growth
+
+plot(Market_Cap~Net_Profit_Margin, Pdata)
+with(Pdata, text(Market_Cap~Net_Profit_Margin, labels=Symbol, pos=4, cex=0.4))
+```
+
+K-means clustering model
+
+```{r}
+library(tidyverse)
+library(factoextra)
+library(ISLR)
+
+Pdata1 <- scale(Pdata[, c(3:11)], center = TRUE, scale = TRUE)
+
+dist_pdata <- get_dist(Pdata1)
+dist_pdata
+print(dist_pdata, digits = 3)
+
+heatmap(Pdata1, scale = "column")
+
+#Company 8 and 17 are the furthest from each other as the distance between them is the largest i.e 7.18. 
+Pdata[c(8,17),] #From this we can see that there is a huge difference in terms of Market capital, Rev_Growth and Net Profit margin of both these companies
+
+```
+
+Finding optimal number for K as per Elbow method
+
+```{r}
+
+
+fviz_nbclust(Pdata1, kmeans, method = "wss") #Elbow method
+
+#Model with optimal number of K as per Elbow method
+
+k_mean_model2 <- kmeans(Pdata1, centers = 2, nstart = 25)
+
+fviz_cluster(k_mean_model3, data = Pdata1)
+
+
+```
+
+Finding optimal number for K as per Silhouette method
+
+```{r}
+fviz_nbclust(Pdata1, kmeans, method = "silhouette") #Silhouette Method
+
+k_mean_model5 <- kmeans(Pdata1, centers = 5, nstart = 25)
+fviz_cluster(k_mean_model5, data = Pdata1)
+```
+Silhouette method of finding optimal number of K is highly influenced by outliers. Since our data has quite a few number of outliers, We can consider the optimal number of K using the Elbow method.
+
+Interpretation of the groups based on clustering
+
+
+
