@@ -1,0 +1,114 @@
+---
+title: "ML_assignment_KMeans"
+author: "Abhishek_Sau"
+date: "19/03/2021"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+## R Markdown
+
+
+```{r}
+setwd("D:\\Study\\Assignments\\MachLearn\\MachLearnAssignment4_KmeansClustering")
+Pdata <- read.csv("Pharmaceuticals.csv")
+head(Pdata)
+
+
+dim(Pdata) #Dataframe has 14 variables and 21 records
+
+str(Pdata) #Shows the No. of variable and their datatypes
+
+U<-unique(Pdata) # This shows there are no duplicate rows
+dim(U) 
+
+pairs(Pdata[3:11]) #All possible combinations of Discrete variables plotted
+
+library(DataExplorer)
+introduce(Pdata) #Shows the number of Discrete/continuous variables and missing value, if any.
+
+#There are 5 discrete Variables, 9 Continuous variables and no missing variables.
+```
+
+#Data exploration
+
+
+```{r}
+set.seed(123)
+plot(Market_Cap~Rev_Growth, Pdata)
+with(Pdata, text(Market_Cap~Rev_Growth, labels=Symbol, pos=4, cex=0.4)) #A rough estimate of how the distribution is for Market cap vs revenue growth
+
+plot(Market_Cap~Net_Profit_Margin, Pdata)
+with(Pdata, text(Market_Cap~Net_Profit_Margin, labels=Symbol, pos=4, cex=0.4))
+```
+
+K-means clustering model
+
+```{r}
+library(tidyverse)
+library(factoextra)
+library(ISLR)
+
+Pdata1 <- scale(Pdata[, c(3:11)], center = TRUE, scale = TRUE)
+
+dist_pdata <- get_dist(Pdata1)
+print(dist_pdata, digits = 3)
+
+heatmap(Pdata1, scale = "column")
+
+#Company 8 and 17 are the furthest from each other as the distance between them is the largest i.e 7.18. 
+Pdata[c(8,17),] #From this we can see that there is a huge difference in terms of Market capital, Rev_Growth and Net Profit margin of both these companies
+
+boxplot(Pdata1, col=c("deepskyblue","deepskyblue4","cadetblue","cadetblue1","cadetblue2","cadetblue3","cadetblue4","dodgerblue", "dodgerblue4"), las = 2) #visualization of the outliers
+
+```
+
+Finding optimal number for K as per Elbow method
+
+```{r}
+
+
+fviz_nbclust(Pdata1, kmeans, method = "wss") +
+ geom_vline(xintercept = 2, linetype = 5)       #Elbow method
+
+fviz_nbclust(Pdata1, kmeans, method = "silhouette") #Silhouette Method
+
+```
+Silhouette method of finding optimal number of K is highly influenced by outliers. Since our data has quite a few number of outliers. 
+
+On removing the outliers, the optimal value of K using the silhouette method also came out to be 2.
+
+Hence, We can consider the optimal number of K using the Elbow method.
+
+```{r}
+
+#k=2
+k_mean_model2 <- kmeans(Pdata1, centers = 2, nstart = 25) 
+fviz_cluster(k_mean_model2, data = Pdata1)+ labs(subtitle = "k=2")
+
+k_mean_model2 
+
+```
+
+
+```{r}
+
+Pdata2 <- Pdata[-c(3:11)] %>% mutate(data.frame(k_mean_model2$cluster))
+
+library("writexl")
+write_xlsx(Pdata2, "D:\\Study\\Assignments\\MachLearn\\MachLearnAssignment4_KmeansClustering\\Pdata2.xlsx")
+
+#Include Report image
+knitr::include_graphics("Report.png")
+knitr::include_graphics("ROEvsROA.png")
+```
+
+Q. Provide an appropriate name for each cluster using any or all of the variables in the dataset.
+
+A- Low Market Cap companies are in cluster 1 and High Market cap companies are in Cluster 2 (As per the report above)
+
+Q. Interpret the clusters with respect to the numerical variables used in forming the clusters.
+
+A. For the same values of Return on equity, companies in cluster 2 have a higer Return on Equity than companies in cluster 1.
