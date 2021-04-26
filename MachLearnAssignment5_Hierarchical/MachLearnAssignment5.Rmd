@@ -1,0 +1,146 @@
+---
+title: "MachlearnAssignment5"
+author: "Abhishek_Sau"
+date: "26/04/2021"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Hierarchical Clustering
+
+The dataset "Cereals.csv" includes nutritional information, store display, and consumer ratings for 77 breakfast cereals. Data Preprocessing. Remove all cereals with missing values.
+
+```{r}
+setwd("D:\\Study\\Assignments\\MachLearn\\MachLearnAssignment5_Hierarchical")
+cereals_df<- read.csv("Cereals.csv")
+str(cereals_df)
+head(cereals_df)
+```
+
+
+```{r}
+
+library(DataExplorer)
+
+introduce(cereals_df) #No. of missing values
+
+cereals_df1<-na.omit(cereals_df) #dataset with omitted rows with missing values
+
+```
+Apply hierarchical clustering to the data using Euclidean distance to the normalized measurements.
+
+```{r}
+library(tidyverse)  
+library(factoextra) 
+library(dendextend)
+library(cluster)
+library(fastDummies)
+
+#Identifying categorical and numeric variables
+
+
+cereals_df1$name<-as.factor(cereals_df1$name)
+cereals_df1$mfr<-as.factor(cereals_df1$mfr)
+cereals_df1$type<-as.factor(cereals_df1$type)
+cereals_df1$shelf <- as.factor(cereals_df1$shelf)
+
+#creating dummy variables
+vaar <- colnames(cereals_df1)
+num_var <- c("calories", "protein", "fat", "sodium","fiber","carbo","sugars","potass","vitamins","weight","cups","rating")
+
+cat_var<-cereals_df1[which(colnames(cereals_df1) %in% c('name','mfr','type','shelf'))]
+cat_var<-data.frame(apply((cereals_df1[which(colnames(cereals_df1) %in% c('name','mfr','type','shelf'))]),2,as.factor))
+
+
+dummy_vars <- fastDummies::dummy_columns(cat_var %>% select(-name))
+num_vars <- cereals_df1[,c(4:12, 14:16)]
+cereals_df2 <-cbind(cereals_df1$name,dummy_vars,num_vars) %>% select(-c(mfr, type, shelf))
+
+```
+
+Normalizing the data set
+
+```{r}
+
+cereals_df2[,c(2:25)]<- scale(cereals_df2[,c(2:25)], scale = TRUE, center = TRUE)
+
+```
+
+Q1. Use Agnes to compare the clustering from single linkage, complete linkage, average linkage, and Ward. Choose the best method.
+
+```{r, fig.height=8, fig.width=14}
+hc1 <- agnes(cereals_df2, method = "complete")
+hc2 <- agnes(cereals_df2, method = "average")
+hc3 <- agnes(cereals_df2, method = "single")
+hc4 <- agnes(cereals_df2, method = "ward")
+
+ac <- c(hc1$ac,hc2$ac,hc3$ac, hc4$ac)
+ac_method <- c(hc1$method,hc2$method,hc3$method, hc4$method)
+ac_df <- data.frame(ac_method, ac)
+ac_df
+
+pltree(hc4, cex = 0.6, hang = -1, main = "Dendrogram based on ward", labels = cereals_df2$`cereals_df1$name`)
+
+```
+
+As per the above table, ward method has the highest agglomerative coefficient, i.e closest to one. Hence, it gives the best clusters.
+
+
+Q2. How many clusters would you choose?
+
+```{r}
+
+fviz_nbclust(cereals_df2, hcut, method = "wss")+
+ geom_vline(xintercept = 2, linetype = 5)
+
+fviz_nbclust(cereals_df2, hcut, method = "silhouette")
+
+cereals_df2<- cereals_df2 %>% mutate(cluster= cutree(hc4, k=2))
+
+```
+As per the dendogram, I will choose 2 clusters.
+
+Q3. Comment on the structure of the clusters and on their stability.
+
+```{r}
+library(caret)
+set.seed(12)
+
+split_index <- createDataPartition(cereals_df2$rating, p=0.6, times = 1, list = FALSE)
+
+cereal_part1 <- cereals_df2[split_index, ]
+cereal_part2 <- cereals_df2[-split_index, ]
+
+centroid1<- cereal_part1 %>% select_if(is.numeric) %>% filter(cluster==1) %>% colMeans()
+centroid2 <- cereal_part1 %>% select_if(is.numeric) %>% filter(cluster==2) %>% colMeans()
+
+centroid <- rbind(centroid1, centroid2)
+
+cluster_B <- data.frame(data=seq(1,nrow(cereal_part2),1),clusterB = rep(0,nrow(cereal_part2)))
+
+for(x in 1:nrow(cereal_part2))
+{ cluster_B$clusterB <- which.min(as.matrix(get_dist(as.data.frame(rbind(centroid[,-25],cereal_part2[x,c(-1,-26)]))))[3,-3])}
+
+cluster_B <- cluster_B %>% mutate(orig_clusters = cereal_part2$cluster)
+
+mean(cluster_B$clusterB==cluster_B$orig_clusters)
+
+```
+Answer: The clusters are not stable as per the comparision.
+
+Q4. The elementary public schools would like to choose a set of cereals to include in their daily cafeterias. Every day a different cereal is offered, but all cereals should support a healthy diet. For this goal, you are requested to find a cluster of “healthy cereals.” Should the data be normalized? If not, how should they be used in the cluster analysis?
+
+
+```{r}
+
+healthy_cereals <- data.frame(cereals_df2 %>% filter(cluster==2) %>% select_if(is.numeric) %>% colMeans())
+
+```
+Cluster 2 has cereals those are rich in protein, Vitamin, Carbs as well as low in sugar and sodium. Hence, Cereals in cluster 2 can be included to support a healthy diet
+
